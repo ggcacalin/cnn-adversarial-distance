@@ -39,8 +39,7 @@ print(y_df)
 x_df = pd.read_csv('input_dataframe.csv')
 y_df = pd.read_csv('classes_dataframe.csv')
 x_np = np.transpose(x_df.to_numpy(dtype='int'))
-y_np = y_df.to_numpy(dtype='int')
-y_np = y_np[0]
+y_np = y_df.to_numpy(dtype='int')[0]
 
 def find_class_counts(y_np):
     counts = [1,0,0,0,0,0]
