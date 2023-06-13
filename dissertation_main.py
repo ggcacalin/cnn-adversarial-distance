@@ -95,32 +95,57 @@ def trainCNN(x_np, y_np):
             model = keras.models.load_model("ECG.model")
         else:
             model = keras.Sequential()
-            model.add(Conv1D(filters = 64, kernel_size = 3, input_shape=(x_train.shape[1], 1), activation='relu'))
-            model.add(Conv1D(filters = 64, kernel_size=3, activation='relu'))
-            model.add(Dropout(0.5))
-            model.add(MaxPooling1D(pool_size=2))
-            model.add(Flatten())
-            model.add(Dense(100, activation='relu'))
-            model.add(Dense(num_classes, activation='softmax'))
+            model.add(Conv1D(filters = 64, kernel_size = 8,
+                             input_shape = (x_train.shape[1], 1)))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=64, kernel_size=5))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=64, kernel_size=3))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=128, kernel_size=8))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=128, kernel_size=5))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=128, kernel_size=3))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=128, kernel_size=8))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=128, kernel_size=5))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(Conv1D(filters=128, kernel_size=3))
+            model.add(BatchNormalization())
+            model.add(Activation(activation='relu'))
+            model.add(GlobalAveragePooling1D())
+            model.add(Dense(num_classes, activation = 'softmax'))
 
             # Optimiser takes in given hyperparameters
-            model.compile(loss="categorical_crossentropy",
-                          optimizer='adam', metrics=["accuracy"])
-            model.fit(x_train, y_train, batch_size=batch_size,
-                                epochs=epochs)
-            model.save("ECG.model")
+            model.compile(loss = "categorical_crossentropy",
+                          optimizer = 'adam', metrics = ["accuracy"])
+            model.fit(x_train, y_train, batch_size = batch_size,
+                                epochs = epochs, validation_split=0.1)
+            model.save("ECG.model.v2")
 
         # Predictions and model evaluation
         preds = model.predict(x_test)
-        y_pred = np.argmax(preds, axis=1)
+        y_pred = np.argmax(preds, axis = 1)
 
         results = model.evaluate(x_test, y_test, batch_size=batch_size)
         eval_acc = results[1]
+        y_test_display = np.argmax(y_test, axis = 1)
+        confusion = metrics.confusion_matrix(y_test_display, y_pred)
+        metrics.ConfusionMatrixDisplay(confusion_matrix = confusion, display_labels = range(1, 7)).plot()
 
-        log_loss = metrics.log_loss(y_test, preds)
-        return -log_loss, eval_acc
+        return eval_acc
 
-log_loss, eval_acc = trainCNN(x_np, y_np)
+eval_acc = trainCNN(x_np, y_np)
 print('--------------------------------------------------------------')
-print(log_loss)
 print(eval_acc)
+plt.show()
