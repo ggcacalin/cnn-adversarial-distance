@@ -9,6 +9,8 @@ from sklearn.preprocessing import normalize
 from sklearn.utils import shuffle
 from sklearn import metrics
 
+from dissertation_metrics import *
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, regularizers
