@@ -177,6 +177,7 @@ def PGD_generate(model, x_original, y_categ, iterations = 10, epsilon = 10, alph
 
 model, _, x_test, y_test = trainCNN(x_np, y_np)
 x_adv = PGD_generate(model, x_test, y_test, epsilon=1)
+x_adv = normalize(x_adv)
 model.evaluate(x_test, y_test, verbose = 1)
 model.evaluate(x_adv, y_test, verbose = 1)
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'magenta']
