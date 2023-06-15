@@ -145,9 +145,47 @@ def trainCNN(x_np, y_np):
         confusion = metrics.confusion_matrix(y_test_display, y_pred)
         metrics.ConfusionMatrixDisplay(confusion_matrix = confusion, display_labels = range(1, 7)).plot()
 
-        return eval_acc
+        return model, eval_acc, x_test, y_test
 
-eval_acc = trainCNN(x_np, y_np)
-print('--------------------------------------------------------------')
-print(eval_acc)
+def PGD_generate(model, x_original, y_categ, iterations = 10, epsilon = 10, alpha = 1, metric = Linf):
+    x_adversarial = []
+    for i in range(len(y_categ)):
+        print(i)
+        adversary = tf.identity(x_original[i])
+        #Initial random perturbation
+        adversary += tf.random.uniform(shape = [len(x_original[i])], minval = -epsilon,
+                                       maxval = epsilon, dtype=tf.dtypes.float64)
+        #Clip starting point
+        while metric(x_original[i], adversary) > epsilon:
+            adversary = adversary * (epsilon / metric(x_original[i], adversary))
+
+        for iter in range(iterations):
+            var_adv = tf.expand_dims(adversary, axis=0)
+            with tf.GradientTape() as g:
+                g.watch(var_adv)
+                prediction = model(var_adv, training = False)
+                loss = tf.keras.losses.CategoricalCrossentropy()(tf.expand_dims(y_categ[i], axis=0), prediction)
+                gradient = g.gradient(loss, var_adv)
+            #Perturb and clip
+            adversary += alpha * tf.sign(gradient[0])
+            while metric(x_original[i], adversary) > epsilon:
+                adversary = adversary * (epsilon / metric(x_original[i], adversary))
+        #Retain completed adversary
+        x_adversarial.append(adversary)
+    #Return perturbed input
+    return np.array(x_adversarial)
+
+model, _, x_test, y_test = trainCNN(x_np, y_np)
+x_adv = PGD_generate(model, x_test, y_test, epsilon=1)
+model.evaluate(x_test, y_test, verbose = 1)
+model.evaluate(x_adv, y_test, verbose = 1)
+colors = ['red', 'green', 'blue', 'orange', 'cyan', 'magenta']
+color_index = 0
+fig, ax = plt.subplots()
+ax.set_xlabel('Time Units (4ms/unit)')
+ax.set_ylabel('Voltage Difference (Normalized)')
+ax.plot(range(len(x_test[0])), x_test[0], color = colors[color_index], label = str(color_index + 1))
+color_index += 1
+ax.plot(range(len(x_adv[0])), x_adv[0], color = colors[color_index], label = str(color_index + 1))
+ax.legend(loc = 'upper left', title = 'Classes', bbox_to_anchor = (1, 1.02))
 plt.show()
