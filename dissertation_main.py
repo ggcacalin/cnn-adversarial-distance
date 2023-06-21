@@ -147,7 +147,7 @@ def trainCNN(x_np, y_np):
 
         return model, eval_acc, x_test, y_test
 
-def PGD_generate(model, x_original, y_categ, iterations = 10, epsilon = 10, alpha = 1, metric = Linf):
+def PGD_generate_simple(model, x_original, y_categ, iterations = 5, epsilon = 10, alpha = 1, tol = 0.1, metric = L2):
     x_adversarial = []
     for i in range(len(y_categ)):
         print(i)
@@ -157,7 +157,53 @@ def PGD_generate(model, x_original, y_categ, iterations = 10, epsilon = 10, alph
                                        maxval = epsilon, dtype=tf.dtypes.float64)
         #Clip starting point
         while metric(x_original[i], adversary) > epsilon:
-            adversary = adversary * (epsilon / metric(x_original[i], adversary))
+            adversary = np.mean([adversary, x_original[i]], axis=0)
+            print(adversary[:5])
+
+        for iter in range(iterations):
+            print('---------------------------')
+            var_adv = tf.expand_dims(adversary, axis=0)
+            with tf.GradientTape() as g:
+                g.watch(var_adv)
+                prediction = model(var_adv, training = False)
+                loss = tf.keras.losses.CategoricalCrossentropy()(tf.expand_dims(y_categ[i], axis=0), prediction)
+                gradient = g.gradient(loss, var_adv)
+            #Perturb and clip
+            adversary += alpha * tf.sign(gradient[0])
+            while metric(x_original[i], adversary) > epsilon:
+                adversary = np.mean([adversary, x_original[i]], axis=0)
+                print(adversary[:5])
+        #Retain completed adversary
+        print(metric(x_original[i], adversary))
+        x_adversarial.append(adversary)
+    #Return perturbed input
+    return np.array(x_adversarial)
+
+def golden_search(model, metric, a, b, tol):
+    gr = (math.sqrt(5) + 1) / 2
+    original = tf.identity(a)
+    c = tf.identity(b - (b - a) / gr)
+    d = tf.identity(a + (b - a) / gr)
+    while metric(original, (a + b) / 2) > tol:
+        if metric(original, c) < metric(original, d):
+            b = tf.identity(d)
+        else:
+            a = tf.identity(c)
+        c = tf.identity(b - (b - a) / gr)
+        d = tf.identity(a + (b - a) / gr)
+    return (a + b) / 2
+
+def PGD_generate_golden(model, x_original, y_categ, iterations = 5, epsilon = 10, alpha = 1, tol = 0.1, metric = L2):
+    x_adversarial = []
+    for i in range(len(y_categ)):
+        print(i)
+        adversary = tf.identity(x_original[i])
+        #Initial random perturbation
+        adversary += tf.random.uniform(shape = [len(x_original[i])], minval = -epsilon,
+                                       maxval = epsilon, dtype=tf.dtypes.float64)
+        #Golden line search to clip
+        adversary = golden_search(model, metric, x_original[i], adversary, tol)
+        print('-----------------')
 
         for iter in range(iterations):
             var_adv = tf.expand_dims(adversary, axis=0)
@@ -168,25 +214,27 @@ def PGD_generate(model, x_original, y_categ, iterations = 10, epsilon = 10, alph
                 gradient = g.gradient(loss, var_adv)
             #Perturb and clip
             adversary += alpha * tf.sign(gradient[0])
-            while metric(x_original[i], adversary) > epsilon:
-                adversary = adversary * (epsilon / metric(x_original[i], adversary))
+            adversary = golden_search(model, metric, x_original[i], adversary, tol)
         #Retain completed adversary
         x_adversarial.append(adversary)
+        print(metric(x_original[i], adversary))
     #Return perturbed input
     return np.array(x_adversarial)
 
 model, _, x_test, y_test = trainCNN(x_np, y_np)
-x_adv = PGD_generate(model, x_test, y_test, epsilon=1)
+#x_adv = PGD_generate_simple(model, x_test, y_test, epsilon=0.1, alpha=0.1, metric = frechet)
+x_adv = PGD_generate_golden(model, x_test, y_test, epsilon = 5, alpha=0.5, tol = 0.1, metric = L2)
 x_adv = normalize(x_adv)
 model.evaluate(x_test, y_test, verbose = 1)
 model.evaluate(x_adv, y_test, verbose = 1)
-colors = ['red', 'green', 'blue', 'orange', 'cyan', 'magenta']
-color_index = 0
-fig, ax = plt.subplots()
-ax.set_xlabel('Time Units (4ms/unit)')
-ax.set_ylabel('Voltage Difference (Normalized)')
-ax.plot(range(len(x_test[0])), x_test[0], color = colors[color_index], label = str(color_index + 1))
-color_index += 1
-ax.plot(range(len(x_adv[0])), x_adv[0], color = colors[color_index], label = str(color_index + 1))
-ax.legend(loc = 'upper left', title = 'Classes', bbox_to_anchor = (1, 1.02))
+for i in range(4):
+    colors = ['red', 'green', 'blue', 'orange', 'cyan', 'magenta']
+    color_index = 0
+    fig, ax = plt.subplots()
+    ax.set_xlabel('Time Units (4ms/unit)')
+    ax.set_ylabel('Voltage Difference (Normalized)')
+    ax.plot(range(len(x_test[i])), x_test[i], color = colors[color_index], label = str(color_index + 1))
+    color_index += 1
+    ax.plot(range(len(x_adv[i])), x_adv[i], color = colors[color_index], label = str(color_index + 1))
+    ax.legend(loc = 'upper left', title = 'Classes', bbox_to_anchor = (1, 1.02))
 plt.show()
