@@ -3,7 +3,7 @@ from fastdtw import fastdtw
 from similaritymeasures import frechet_dist
 
 def L0(original, adversary):
-    return np.sum((np.abs(original - adversary) > 0.01)) / len(original)
+    return np.sum((np.abs(original - adversary) > 0.05)) / len(original)
 
 def L1(original, adversary):
     return np.sum(np.abs(original - adversary))
