@@ -25,9 +25,8 @@ plt.rc('font', size=18)
 plt.rcParams['figure.constrained_layout.use'] = True
 
 #Create inputs & classes dataframes
-'''
+
 record_list = wfdb.get_record_list('ecg-fragment-high-risk-label/1.0.0')
-print(record_list)
 x_df = wfdb.rdrecord('data\\' + record_list[0], physical=False).to_dataframe()
 x_df.rename(columns={'col 1': '0'}, inplace = True)
 y_df = pd.DataFrame([int(record_list[0][0])])
@@ -40,7 +39,7 @@ x_df.to_csv('input_dataframe.csv', index=False)
 y_df.to_csv('classes_dataframe.csv', index=False)
 print(x_df)
 print(y_df)
-'''
+
 #Read processed dataframes
 x_df = pd.read_csv('input_dataframe.csv')
 y_df = pd.read_csv('classes_dataframe.csv')
@@ -77,8 +76,8 @@ def demo_plots(x_df, counts):
     plt.show()
 
 #Plotting class overview
-#class_counts = find_class_counts(y_df)
-#demo_plots(x_df, class_counts)
+class_counts = find_class_counts(y_df)
+demo_plots(x_df, class_counts)
 
 def trainCNN(x_np, y_np):
     #Getting train / test split
@@ -150,38 +149,6 @@ def trainCNN(x_np, y_np):
 
         return model, eval_acc, x_test, y_test
 
-def PGD_generate_simple(model, x_original, y_categ, iterations = 5, epsilon = 10, alpha = 1, tol = 0.1, metric = L2):
-    x_adversarial = []
-    for i in range(len(y_categ)):
-        print(i)
-        adversary = tf.identity(x_original[i])
-        #Initial random perturbation
-        adversary += tf.random.uniform(shape = [len(x_original[i])], minval = -epsilon,
-                                       maxval = epsilon, dtype=tf.dtypes.float64)
-        #Clip starting point
-        while metric(x_original[i], adversary) > epsilon:
-            adversary = np.mean([adversary, x_original[i]], axis=0)
-            print(adversary[:5])
-
-        for iter in range(iterations):
-            print('---------------------------')
-            var_adv = tf.expand_dims(adversary, axis=0)
-            with tf.GradientTape() as g:
-                g.watch(var_adv)
-                prediction = model(var_adv, training = False)
-                loss = tf.keras.losses.CategoricalCrossentropy()(tf.expand_dims(y_categ[i], axis=0), prediction)
-                gradient = g.gradient(loss, var_adv)
-            #Perturb and clip
-            adversary += alpha * tf.sign(gradient[0])
-            while metric(x_original[i], adversary) > epsilon:
-                adversary = np.mean([adversary, x_original[i]], axis=0)
-                print(adversary[:5])
-        #Retain completed adversary
-        print(metric(x_original[i], adversary))
-        x_adversarial.append(adversary)
-    #Return perturbed input
-    return np.array(x_adversarial)
-
 def golden_search(metric, a, b, tol):
     measurement_count = 0
     gr = (math.sqrt(5) + 1) / 2
@@ -197,7 +164,6 @@ def golden_search(metric, a, b, tol):
         measurement_count += 2
         c = tf.identity(b - (b - a) / gr)
         d = tf.identity(a + (b - a) / gr)
-        print(metric(original, (a + b) / 2))
     return (a + b) / 2, measurement_count
 
 def PGD_generate_golden(model, x_original, y_categ, iterations = 5, epsilon = 10, alpha = 1, tol = 0.1, metric = L2):
@@ -226,24 +192,75 @@ def PGD_generate_golden(model, x_original, y_categ, iterations = 5, epsilon = 10
             adversary += alpha * tf.sign(gradient[0])
             adversary, measurements = golden_search(metric, x_original[i], adversary, tol)
             measurement_count += measurements
-        #Retain completed adversary
         x_adversarial.append(adversary)
         measurement_count_storage.append(measurement_count)
         measurement_value_storage.append(metric(x_original[i], adversary))
     #Return perturbed input
     return np.array(x_adversarial), np.array(measurement_value_storage), np.array(measurement_count_storage)
 
-def RPS_generate(model, x_original, y_categ, iterations = 25,
-                 N = 10, M = 3, epsilon = 0.5, beta = 0.8, metric = L2):
+def PGD_generate_golden_demo(model, x_original, y_categ, iterations = 5, epsilon = 10, alpha = 1, tol = 0.1, metric = L2):
+    x_adversarial = []
+    measurement_value_storage = []
+    measurement_count_storage = []
+    plt.ion()
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title('PGD Demonstration')
+    ax.set_xlabel('Time Units (4ms/unit)')
+    ax.set_ylabel('Voltage Difference (Normalized)')
+    for i in range(len(y_categ)):
+        measurement_count = 0
+        print(i)
+        adversary = tf.identity(x_original[i])
+        #Initial random perturbation
+        adversary += tf.random.normal(shape = [len(x_original[i])], stddev = epsilon, dtype=tf.dtypes.float64)
+        #Golden line search to clip
+        adversary, measurements = golden_search(metric, x_original[i], adversary, tol)
+        measurement_count += measurements
+        adv, = ax.plot(range(len(x_original[i])), adversary, 'b-', label = 'adversary')
+        orig, = ax.plot(range(len(x_original[i])), x_original[i], 'g-', label = 'original')
+        ax.legend(loc='upper left', title='Classes', bbox_to_anchor=(1, 1.02))
+        print('-----------------')
+
+        for iter in range(iterations):
+            var_adv = tf.expand_dims(adversary, axis=0)
+            with tf.GradientTape() as g:
+                g.watch(var_adv)
+                prediction = model(var_adv, training = False)
+                loss = tf.keras.losses.CategoricalCrossentropy()(tf.expand_dims(y_categ[i], axis=0), prediction)
+                gradient = g.gradient(loss, var_adv)
+            #Perturb and clip
+            adversary += alpha * tf.sign(gradient[0])
+            adversary, measurements = golden_search(metric, x_original[i], adversary, tol)
+            measurement_count += measurements
+            time.sleep(3)
+            adv.set_ydata(adversary)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+        #Retain completed adversary
+        adv.set_color('r')
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        time.sleep(3)
+        orig.remove()
+        adv.remove()
+        x_adversarial.append(adversary)
+        measurement_count_storage.append(measurement_count)
+        measurement_value_storage.append(metric(x_original[i], adversary))
+    #Return perturbed input
+    plt.ioff()
+    return np.array(x_adversarial), np.array(measurement_value_storage), np.array(measurement_count_storage)
+
+def RPS_generate(model, x_original, y_categ, iterations = 5,
+                 N = 10, M = 3, epsilon = 0.5, beta = 0.9, metric = L2):
     x_adversarial = []
     metric_storage = []
     measurement_count_storage = []
     stored_epsilon = epsilon
     max_attempts = 50
-
     for i in range(len(y_categ)):
         print(i)
-        #Initial neighbour generation - only keep if misclassifies in one list, allow some fails in the other
+        #Initial neighbour generation - only keep if misclassifies in one list, allow fails in the other
         sample_zipped = []
         sample = []
         sample_metrics = []
@@ -252,11 +269,8 @@ def RPS_generate(model, x_original, y_categ, iterations = 25,
         measurement_count = 0
         for _ in range(N):
             attempts = 1
-            #Randomly generate positions to be perturbed
-            perturbed_positions = random.sample(range(len(y_categ)), int(len(y_categ) * attempts / max_attempts))
             adversary = np.copy(x_original[i])
-            for pos in perturbed_positions:
-                adversary[pos] += tf.random.normal(shape=[1], stddev = epsilon, dtype=tf.dtypes.float64)
+            adversary += tf.random.normal(shape=[len(x_original[i])], stddev=epsilon, dtype=tf.dtypes.float64)
             adversary_class = np.argmax(model(tf.expand_dims(adversary, axis=0), training = False), axis = 1)[0]
             success_flag = False
 
@@ -271,11 +285,8 @@ def RPS_generate(model, x_original, y_categ, iterations = 25,
                 else:
                     #Generate new adversary if not effective
                     attempts += 1
-                    perturbed_positions = random.sample(range(len(y_categ)),
-                                                        int(len(y_categ) * attempts / max_attempts))
                     adversary = np.copy(x_original[i])
-                    for pos in perturbed_positions:
-                        adversary[pos] += tf.random.normal(shape=[1], stddev = epsilon, dtype=tf.dtypes.float64)
+                    adversary += tf.random.normal(shape = [len(x_original[i])], stddev = epsilon, dtype=tf.dtypes.float64)
                     adversary_class = np.argmax(model(tf.expand_dims(adversary, axis=0), training=False), axis=1)[0]
 
             if not success_flag:
@@ -284,9 +295,9 @@ def RPS_generate(model, x_original, y_categ, iterations = 25,
                 sample_zipped.append((distance, adversary))
 
         # Sort neighbours by distance and keep the best M
-        sample_zipped = sorted(sample_zipped)[:M]
+        sample_zipped = sorted(sample_zipped, key=lambda x: x[0])[:M]
         try:
-            no_fail_best = sorted(no_fail_zipped)[0]
+            no_fail_best = sorted(no_fail_zipped, key=lambda x: x[0])[0]
         except:
             no_fail_best = (10000, x_original[i])
 
@@ -301,7 +312,7 @@ def RPS_generate(model, x_original, y_categ, iterations = 25,
                 for _ in range(N):
                     attempts = 1
                     adversary = previous_adversary + tf.random.normal(shape=[len(previous_adversary)],
-                                                                      stddev=epsilon / 50,
+                                                                      stddev=epsilon,
                                                                       dtype=tf.dtypes.float64)
                     adversary_class = \
                     np.argmax(model(tf.expand_dims(adversary, axis=0), training=False), axis=1)[0]
@@ -320,7 +331,7 @@ def RPS_generate(model, x_original, y_categ, iterations = 25,
                             attempts += 1
                             adversary = previous_adversary + tf.random.normal(
                                 shape=[len(previous_adversary)],
-                                stddev=epsilon / 50, dtype=tf.dtypes.float64)
+                                stddev=epsilon, dtype=tf.dtypes.float64)
                             adversary_class = \
                             np.argmax(model(tf.expand_dims(adversary, axis=0), training=False), axis=1)[0]
 
@@ -332,8 +343,8 @@ def RPS_generate(model, x_original, y_categ, iterations = 25,
             if len(no_fail_candidate) < 1:
                 continue
             # Sort neighbours by distance and keep the best M of the N*M posibilities
-            sample_candidate = sorted(sample_candidate)[:M]
-            no_fail_candidate = sorted(no_fail_candidate)[0]
+            sample_candidate = sorted(sample_candidate, key=lambda x: x[0])[:M]
+            no_fail_candidate = sorted(no_fail_candidate, key=lambda x: x[0])[0]
             # If no improvements at all, just resample; otherwise update best points and use tighter window
             if no_fail_candidate[0] < no_fail_best[0]:
                 sample_zipped = sample_candidate.copy()
@@ -393,9 +404,43 @@ def get_combing_effectiveness(original, old_distances, new_adversary, metric):
             distance_vector.append(0)
     return np.mean(distance_vector)
 
-def pickle_results(algo, metric, x_adv, metric_vector):
-    adv_filename = algo + '_adversaries_' + metric + '.pickle'
-    dist_filename = algo + '_distances_' + metric + '.pickle'
+def compare_distances(original, model, y_categ, algo, metric_name, succesful = True):
+    metric_dict = {'L0': L0, 'L1': L1, 'L2': L2, 'Linf': Linf,
+                   'cosine': cosine, 'pearson': pearson, 'DTW': DTW, 'frechet': frechet}
+    adversary, metric_vector = load_results(algo, metric_name)
+    if succesful:
+        #Only keep succesful adversaries
+        successes = []
+        metrics_successes = []
+        for i in range(len(adversary)):
+            if np.argmax(model(tf.expand_dims(adversary[i], axis=0), training=False), axis=1)[0] != np.argmax(y_categ[i]):
+                successes.append(adversary[i])
+                metrics_successes.append(metric_vector[i])
+        adversary = successes.copy()
+        metric_vector = metrics_successes.copy()
+    means_dict = {}
+    smaller_count = 0
+    for name in metric_dict:
+        print(name)
+        #Only do things for the other metrics than what is called
+        if name == metric_name:
+            means_dict[name] = np.mean(metric_vector)
+        else:
+            input_distances = []
+            for i in range(len(adversary)):
+                print(i)
+                input_distances.append(metric_dict[name](original[i], adversary[i]))
+            means_dict[name] = np.mean(input_distances)
+            # Count how many distances are smaller than the base one
+            if np.mean(input_distances) < np.mean(metric_vector):
+                smaller_count += 1
+    print(means_dict)
+    print(smaller_count)
+    return smaller_count
+
+def pickle_results(algo, metric, x_adv, metric_vector, extra = ''):
+    adv_filename = algo + '_adversaries_' + metric + extra + '.pickle'
+    dist_filename = algo + '_distances_' + metric + extra + '.pickle'
     with open(adv_filename, 'wb') as jar:
         pickle.dump(x_adv, jar, protocol=pickle.HIGHEST_PROTOCOL)
     with open(dist_filename, 'wb') as jar:
@@ -434,27 +479,40 @@ def show_adversary(count, model, x_test, y_categ, x_adv_orig, x_adv_combed = [])
         if current_count >= count:
             break
 
-model, _, x_test, y_test = trainCNN(x_np, y_np)
 
-metric_name = 'DTW'
-metric_method = DTW
-sample_size = 20
-epsilon = 1
+model, _, x_test, y_test = trainCNN(x_np, y_np)
+#Parameter control panel
+metric_name = 'L2'
+metric_method = L2
+sample_size = 200
 alpha = 0.1
-tol = 1
+tol = 0.05
+#0.005, 0.01, 0.05
+epsilon = 0.2
+#5, 10, 15 (we like 15)
+N = 15
+#5, 3, 1
+M = 3
+extra = 'demo'
 
 run_time = time.time()
-x_adv, metric_vector, count_vector = PGD_generate_golden(model, x_test[:sample_size], y_test[:sample_size],
+x_adv, metric_vector, count_vector = PGD_generate_golden_demo(model, x_test[:sample_size], y_test[:sample_size],
                                                          epsilon = epsilon, alpha= alpha, tol = tol, metric = metric_method)
-#x_adv, metric_vector, count_vector = RPS_generate(model, x_test, y_test, iterations= 5, beta = 0.9)
+#x_adv, metric_vector, count_vector = RPS_generate(model, x_test[:sample_size], y_test[:sample_size], N = N, M = M,
+#                                                  epsilon = epsilon, metric = metric_method)
 #x_adv, metric_vector = load_results('rps', metric_name)
 run_time = time.time() - run_time
 
 evaluation_original = model.evaluate(x_test[:sample_size], y_test[:sample_size], verbose = 1)
 evaluaiton_adversary = model.evaluate(x_adv, y_test[:sample_size], verbose = 1)
 
+smaller_count = compare_distances(x_test[:sample_size], model,
+                                  y_test[:sample_size], 'rps', metric_name, succesful=False)
+
 with open('PGD_outputs', 'a') as file:
+#with open('RPS_outputs', 'a') as file:
     file.write(metric_name + ' epsilon=' + str(epsilon) + ' alpha=' + str(alpha) + ' tol=' + str(tol) + '\n')
+    #file.write(metric_name + ' epsilon=' + str(epsilon) + ' N=' + str(N) + ' M=' + str(M) + '\n')
     file.write('orig_acc: ')
     file.write(str(evaluation_original[1]) + '\n')
     file.write('adv_acc: ')
@@ -468,13 +526,14 @@ old_adversary = tf.identity(x_adv)
 x_adv, change_vector = comb_adversary(model, x_test[:sample_size], x_adv, y_test[:sample_size])
 average_reduction = get_combing_effectiveness(x_test[:sample_size], metric_vector, x_adv, metric_method)
 
-pickle_results('pgd', metric_name, x_adv, metric_vector)
+pickle_results('pgd', metric_name, x_adv, metric_vector, extra = extra)
 
 with open('PGD_outputs', 'a') as file:
+#with open('RPS_outputs', 'a') as file:
     file.write('average changes per input: ')
     file.write(str(np.mean(change_vector)) + '\n')
     file.write('average relative distance reduction from combing: ')
     file.write(str(average_reduction) + '\n')
 
-show_adversary(2, model, x_test, y_test, old_adversary, x_adv)
+#show_adversary(2, model, x_test, y_test, old_adversary, x_adv)
 plt.show()

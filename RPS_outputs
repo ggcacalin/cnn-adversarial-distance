@@ -1,0 +1,119 @@
+L2 epsilon=0.01 N=10 M=3
+orig_acc: 0.75
+adv_acc: 0.4000000059604645
+average measurements per input: 161.0
+average time per input: 55.127961337566376
+average changes per input: 424.95
+average relative distance reduction from combing: 0.513822347547738
+L2 epsilon=0.005 N=10 M=3
+orig_acc: 0.75
+adv_acc: 0.5
+average measurements per input: 161.0
+average time per input: 75.99394690990448
+average changes per input: 354.95
+average relative distance reduction from combing: 0.44014316205515713
+L2 epsilon=0.05 N=10 M=3
+orig_acc: 0.75
+adv_acc: 0.0
+average measurements per input: 161.0
+average time per input: 2.0341214418411253
+average changes per input: 704.85
+average relative distance reduction from combing: 0.8351418006493108
+L2 epsilon=0.01 N=5 M=3
+orig_acc: 0.75
+adv_acc: 0.4000000059604645
+average measurements per input: 81.0
+average time per input: 18.262685883045197
+average changes per input: 425.95
+average relative distance reduction from combing: 0.5145293792958557
+L2 epsilon=0.01 N=25 M=3
+orig_acc: 0.75
+adv_acc: 0.3499999940395355
+average measurements per input: 401.0
+average time per input: 91.51329492330551
+average changes per input: 457.9
+average relative distance reduction from combing: 0.5337511284180622
+L2 epsilon=0.01 N=10 M=5
+orig_acc: 0.75
+adv_acc: 0.3499999940395355
+average measurements per input: 261.0
+average time per input: 60.00421906709671
+average changes per input: 456.8
+average relative distance reduction from combing: 0.5286917671837248
+L2 epsilon=0.01 N=10 M=1
+orig_acc: 0.75
+adv_acc: 0.3499999940395355
+average measurements per input: 61.0
+average time per input: 13.955984270572662
+average changes per input: 458.75
+average relative distance reduction from combing: 0.5412749588187743
+L0 epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.25
+average measurements per input: 241.0
+average time per input: 88.44308319091797
+average changes per input: 522.8
+average relative distance reduction from combing: 0.0
+L1 epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.25
+average measurements per input: 241.0
+average time per input: 93.37479989528656
+average changes per input: 524.45
+average relative distance reduction from combing: 0.6983784629541503
+L1 epsilon=0.005 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.4000000059604645
+average measurements per input: 241.0
+average time per input: 98.5789690732956
+average changes per input: 421.45
+average relative distance reduction from combing: 0.5633112535897065
+Linf epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.25
+average measurements per input: 241.0
+average time per input: 90.92620965242386
+average changes per input: 522.0
+average relative distance reduction from combing: 0.2805887915103825
+cosine epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.30000001192092896
+average measurements per input: 241.0
+average time per input: 49.91639704704285
+average changes per input: 490.55
+average relative distance reduction from combing: 0.654851071157179
+pearson epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.30000001192092896
+average measurements per input: 241.0
+average time per input: 52.468384778499605
+average changes per input: 489.75
+average relative distance reduction from combing: 0.6508125115739986
+frechet epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.20000000298023224
+average measurements per input: 241.0
+average time per input: 135.68591080904008
+average changes per input: 559.4
+average relative distance reduction from combing: 0.38975445166218947
+frechet epsilon=0.005 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.4000000059604645
+average measurements per input: 241.0
+average time per input: 261.8186482667923
+average changes per input: 423.0
+average relative distance reduction from combing: 0.3557114092292333
+DTW epsilon=0.01 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.25
+average measurements per input: 241.0
+average time per input: 808.9708182811737
+average changes per input: 521.7
+average relative distance reduction from combing: 0.687381493363095
+DTW epsilon=0.005 N=15 M=3
+orig_acc: 0.75
+adv_acc: 0.4000000059604645
+average measurements per input: 241.0
+average time per input: 1170.8787455558777
+average changes per input: 421.85
+average relative distance reduction from combing: 0.5612304853063368
