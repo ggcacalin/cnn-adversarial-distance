@@ -8,6 +8,7 @@ Dissertation on the importance of distance metrics for adversarial attacks on TS
 **Nested entries are not independent and one should not be modified without the other.**
 - Re-generate dataframes (optional): 29-41
 - All classes demonstration plot: 79-80
+- Re-train CNN classification model (ECG.model, default is to load): 97
 - Control parameters and distance measure utilised: 485-495. Metric name and method should coincide.
 - Execute PGD: 499-500
   - Append results to PGD run log: 512, 514
